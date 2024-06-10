@@ -1,0 +1,29 @@
+{
+    "config": {
+        "bot": {
+            "msgOffset": 0,
+            "pollTimeout": 20,
+            "whiteListFile": "whitelist.txt"
+        },
+        "groups": {
+            "default": {
+                "id": "0",
+                "bannedEntities": [
+                    "bot_command",
+                    "url",
+                    "email",
+                    "phone_number"
+                ],
+                "unValidatedTimeToKick": 120,
+                "timeToRestrict": 60,
+                "validatedTimeToKick": 900,
+                "timeToRestrictForwards": 120,
+                "timeToDelete": 120,
+                "active": true,
+                "inLockdown": false
+            },
+            "custom": {
+            }
+        }
+    }
+}

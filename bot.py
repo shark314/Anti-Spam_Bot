@@ -926,7 +926,7 @@ def readIntFileToList(path):
 
 if __name__ == '__main__':
 	# initial token value
-	token = ""
+	token = "7021718879:AAG1O_YmH8-J23z_h6QiYZw_Yr0vDwqh4xM"
 	argv = sys.argv[1:]
 
 	# try getting supported parameters and args from command line
