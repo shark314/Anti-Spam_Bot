@@ -1,11 +1,93 @@
-import requests, json, random, sys, getopt, time, os, copy, datetime
+import schedule, requests, json, random, sys, getopt, time, os, copy, datetime, asyncio, pytz
 from urllib import parse
+from datetime import datetime, timedelta
+from telethon import TelegramClient, events
+import pandas as pd
+import nltk
+from telethon.sync import TelegramClient
+from telethon.tl.functions.messages import GetHistoryRequest
 
 def getHelp():
 	print("\nList of options:\n\n" +
 		"-(t)oken of bot to control\n" +
 		"--help to show this help message\n\n")
 	sys.exit(0)
+
+api_id = "20901343"
+api_hash = '798a0b09349a619674cc9d6f682fe031'
+# enter your api hash form telegram api website
+phone_number = '+1 628 800 7728'
+# enter your pone number on this formate
+
+# Set the time range to get messages from
+start_time = datetime.now() - timedelta(hours=120)
+flag=0
+
+async def get_group_messages():
+	print('123123')
+	df = pd.DataFrame({'Data':[''],'name':[''],'mobile':['']})
+	df1 = pd.DataFrame({'Data':[''],'name':[''],'mobile':['']})
+	# Create a Telegram client with the specified API ID, API hash and phone number
+	print('---------session_name---------', api_id, api_hash)
+	client = TelegramClient('session_name', api_id, api_hash)
+	await client.connect()
+
+	# Check if the user is already authorized, otherwise prompt the user to authorize the client
+	if not await client.is_user_authorized():
+		await client.send_code_request(phone_number)
+		await client.sign_in(phone_number, input('Enter the code: '))
+
+	# Get the ID of the specified group
+	group = await client.get_entity(-1002216766202)
+	participants = await client.get_participants(group)
+    # Get the messages in the group since 5 days ago
+	messages = await client.get_messages(-1002216766202, offset_date= datetime.now(pytz.timezone('America/Chicago')) - timedelta(minutes=10))
+	admin_ids = [7021718879, 7116919561]
+	participant_ids = [participant.id for participant in participants]
+	print('participant_ids', participant_ids)
+	for message in messages:
+		print("--------message1-------\n", message)
+	messaged_user_ids = [int(''.join(filter(str.isdigit, str(message.from_id)))) for message in messages]
+	unique_messaged_user_ids = list(set(messaged_user_ids))
+	print("messaged_user_ids=======>", unique_messaged_user_ids)
+	banUser_ids = list(set(participant_ids) - (set(unique_messaged_user_ids) | set(admin_ids)))
+	print("banUser_ids========>>>>>>>>>", banUser_ids)
+	for banUser in banUser_ids:
+		banRequest = sendRequest(["kickChatMember", "chat_id", -1002216766202, "user_id", banUser])
+		if banRequest[0] == False:
+			# if the ban failed, output request contents
+			print("timestamp3:", int(time.time()), "Couldn't ban user_id", banUser, ":", banRequest[2])
+		# deleteRequest = sendRequest(["deleteMessage", "chat_id", self.chat['id'], "message_id", self.message_id])
+		# if deleteRequest[0] == False:
+		# 	print("timestamp4:", int(time.time()), "Couldn't delete message", self.message_id, "from chat", self.chat['id'],":", banRequest[2])
+
+
+# input_string = "There are 5 apples and 3 oranges. The total is 8 fruits."
+# numbers = ''.join(filter(str.isdigit, input_string))
+
+	# for participant in participants:
+	# 	user_entity = await client.get_entity(participant.username)
+	# 	history = await client(GetHistoryRequest(
+	# 		peer=user_entity,
+	# 		limit=1,
+	# 		offset_date=None,
+	# 		offset_id=0,
+	# 		max_id=0,
+	# 		min_id=0,
+	# 		add_offset=0,
+	# 		hash=0
+	# 	))
+	# 	print(participant.username, "------------", history.messages)
+
+	# 	if history.messages:
+	# 		last_message_date = history.messages[0].date
+	# 		print(f'User: {participant.username}, Last Action Date: {last_message_date}')
+	
+	client.disconnect()
+
+	
+def run_async_jobs():
+	asyncio.run(get_group_messages())
 
 # handles fetching of messages, returning basic message info
 class messageFetcher:
@@ -27,7 +109,7 @@ class messageFetcher:
 			self.messagesParsed = json.loads(updateRequest[2])
 			return True
 		else:
-			print("timestamp:", int(time.time()), "Failed to fetch new messages!", updateRequest[2])
+			print("timestamp2:", int(time.time()), "Failed to fetch new messages!", updateRequest[2])
 			return False
 
 	# loop through each parsed message stored in the messageFetcher
@@ -418,10 +500,10 @@ class message_new_chat_members:
 				banRequest = sendRequest(["kickChatMember", "chat_id", self.chat['id'], "user_id", member['id']])
 				if banRequest[0] == False:
 					# if the ban failed, output request contents
-					print("timestamp:", int(time.time()), "Couldn't ban user_id", member['id'], ":", banRequest[2])
+					print("timestamp3:", int(time.time()), "Couldn't ban user_id", member['id'], ":", banRequest[2])
 				deleteRequest = sendRequest(["deleteMessage", "chat_id", self.chat['id'], "message_id", self.message_id])
 				if deleteRequest[0] == False:
-					print("timestamp:", int(time.time()), "Couldn't delete message", self.message_id, "from chat", self.chat['id'],":", banRequest[2])
+					print("timestamp4:", int(time.time()), "Couldn't delete message", self.message_id, "from chat", self.chat['id'],":", banRequest[2])
 
 
 	def getInfo(self):
@@ -504,7 +586,7 @@ class message_new_left_members:
 		if config.getCustomGroupConfig(self.chat['id'])['inLockdown'] == True:
 			deleteRequest = sendRequest(["deleteMessage", "chat_id", self.chat['id'], "message_id", self.message_id])
 			if deleteRequest[0] == False:
-				print("timestamp:", int(time.time()), "Couldn't delete message", self.message_id, "from chat", self.chat['id'],":", banRequest[2])
+				print("timestamp5:", int(time.time()), "Couldn't delete message", self.message_id, "from chat", self.chat['id'],":", banRequest[2])
 
 	def getInfo(self):
 		# extract always included message data
@@ -561,11 +643,11 @@ class message_new_callback_query:
 					newUsers[self.query_from['id'] + self.query_message['chat']['id']]['welcomeMsgid'].append(json.loads(newTextMessageRequest[2])['result']['message_id'])
 					deleteRequest = sendRequest(["deleteMessage", "chat_id", self.query_message['chat']['id'], "message_id", newUsers[self.query_from['id'] + self.query_message['chat']['id']]['welcomeMsgid'].pop(len(newUsers[self.query_from['id'] + self.query_message['chat']['id']]['welcomeMsgid'])-2)])
 					if deleteRequest[0] == False:
-						print("timestamp:", int(time.time()), "Failed to delete message", newUsers[self.query_from['id'] + self.query_message['chat']['id']]['welcomeMsgid'][len(newUsers[self.query_from['id'] + self.query_message['chat']['id']]['welcomeMsgid'])-2], ":", deleteRequest[2])
+						print("timestamp6:", int(time.time()), "Failed to delete message", newUsers[self.query_from['id'] + self.query_message['chat']['id']]['welcomeMsgid'][len(newUsers[self.query_from['id'] + self.query_message['chat']['id']]['welcomeMsgid'])-2], ":", deleteRequest[2])
 
 
 			except Exception as e:
-				print("timestamp:", int(time.time()), "Couldn't edit user", self.query_from['id'], "dictionary entry: ", str(e))
+				print("timestamp7:", int(time.time()), "Couldn't edit user", self.query_from['id'], "dictionary entry: ", str(e))
 		# if the IDs don't match up
 		else:
 			# have to respond with an answerCallbackQuery, otherwise the button stays on loading wheel
@@ -644,7 +726,7 @@ class config:
 
 
 def handleWrongChat():
-	print("timestamp:", int(time.time()), "New msg from a non-whitelisted", msg['message']['chat']['type'], "ID: ", msg['message']['chat']['id'])
+	print("timestamp8:", int(time.time()), "New msg from a non-whitelisted", msg['message']['chat']['type'], "ID: ", msg['message']['chat']['id'])
 	sendRequest(["sendMessage", "chat_id", msg['message']['chat']['id'], "text", "Hi there%21%0A%0AI appreciate the add to your group, however right now I only work on specific groups%21"])
 	sendRequest(["leaveChat", "chat_id", msg['message']['chat']['id']])
 
@@ -674,16 +756,16 @@ def processNewUserList():
 					newUsers[key]['welcomeMsgid'].append(json.loads(newTextMessageRequest[2])['result']['message_id'])
 					deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", newUsers[key]['welcomeMsgid'].pop(len(newUsers[key]['welcomeMsgid'])-2)])
 					if deleteRequest[0] == False:
-						print("timestamp:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
+						print("timestamp9:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
 				# kick user
 				kickRequest = sendRequest(["unbanChatMember", "chat_id", newUsers[key]['chatId'], "user_id", newUsers[key]['id']])
 				if kickRequest[0] == False:
 					# if the kick didn't work, try banning instead
-					print("timestamp:", int(time.time()), "Failed to kick, attempting to ban...")
+					print("timestamp10:", int(time.time()), "Failed to kick, attempting to ban...")
 					banRequest = sendRequest(["kickChatMember", "chat_id", newUsers[key]['chatId'], "user_id", newUsers[key]['id']])
 					if banRequest[0] == False:
 						# if the ban failed, output request contents
-						print("timestamp:", int(time.time()), "Couldn't ban user_id", newUsers[key]['id'], ":", banRequest[2])
+						print("timestamp11:", int(time.time()), "Couldn't ban user_id", newUsers[key]['id'], ":", banRequest[2])
 
 
 		# if the user hasn't passed validation, and
@@ -713,10 +795,10 @@ def processNewUserList():
 				for msg in range(len(newUsers[key]['welcomeMsgid'])):
 					deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", newUsers[key]['welcomeMsgid'][msg-1]])
 					if deleteRequest[0] == False:
-						print("timestamp:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][msg-1], ":", deleteRequest[2])
+						print("timestamp12:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][msg-1], ":", deleteRequest[2])
 				deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", newUsers[key]['joinedMessage']])
 				if deleteRequest[0] == False:
-					print("timestamp:", int(time.time()), "Couldn't delete message", newUsers[key]['joinedMessage'], ":", deleteRequest[2])
+					print("timestamp13:", int(time.time()), "Couldn't delete message", newUsers[key]['joinedMessage'], ":", deleteRequest[2])
 				# mark newUser for deletion from dictionary
 				toDelete.append(key)
 
@@ -739,17 +821,17 @@ def processNewUserList():
 					newUsers[key]['welcomeMsgid'].append(json.loads(newTextMessageRequest[2])['result']['message_id'])
 					deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", newUsers[key]['welcomeMsgid'].pop(len(newUsers[key]['welcomeMsgid'])-2)])
 					if deleteRequest[0] == False:
-						print("timestamp:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
+						print("timestamp14:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
 				
 				# kick user
 				kickRequest = sendRequest(["unbanChatMember", "chat_id", newUsers[key]['chatId'], "user_id", newUsers[key]['id']])
 				if kickRequest[0] == False:
 					# if the kick didn't work, try banning instead
-					print("timestamp:", int(time.time()), "Failed to kick, attempting to ban...")
+					print("timestamp15:", int(time.time()), "Failed to kick, attempting to ban...")
 					banRequest = sendRequest(["kickChatMember", "chat_id", newUsers[key]['chatId'], "user_id", newUsers[key]['id']])
 					if banRequest[0] == False:
 						# if the ban failed, output request contents
-						print("timestamp:", int(time.time()), "Couldn't ban user_id", newUsers[key]['id'], ":", banRequest[2])
+						print("timestamp16:", int(time.time()), "Couldn't ban user_id", newUsers[key]['id'], ":", banRequest[2])
 
 
 		# if the user has passed validation, but hasn't sent any messages,
@@ -782,14 +864,14 @@ def processNewUserList():
 						newUsers[key]['welcomeMsgid'].append(json.loads(newTextMessageRequest[2])['result']['message_id'])
 						deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", newUsers[key]['welcomeMsgid'].pop(len(newUsers[key]['welcomeMsgid'])-2)])
 						if deleteRequest[0] == False:
-							print("timestamp:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
-					
+							print("timestamp17:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
+
 					permEditRequest = sendRequest(["restrictChatMember", "chat_id", newUsers[key]['chatId'], "user_id", newUsers[key]['id'], "permissions", newMemberRestrictions, "until_date", currentUnixTime])
 					if permEditRequest[0] == True:
 						newUsers[key]['hasSetTextRestrictions'] = True
 						newUsers[key]['timeSetTextRestrictions'] = currentUnixTime
 					elif permEditRequest[0] == False:
-						print("timestamp:", int(time.time()), "Failed to change permissions for", newUsers[key]['id'], ":", permEditRequest[2])
+						print("timestamp1:", int(time.time()), "Failed to change permissions for", newUsers[key]['id'], ":", permEditRequest[2])
 
 
 
@@ -805,7 +887,7 @@ def processNewUserList():
 				for userMessage in newUsers[key]['sentMessages']:
 					deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", userMessage])
 					if deleteRequest[0] == False:
-						print("timestamp:", int(time.time()), "Couldn't delete message ID", userMessage, ":", deleteRequest[2])
+						print("timestamp18:", int(time.time()), "Couldn't delete message ID", userMessage, ":", deleteRequest[2])
 
 				# send new message. If that succeeds, add it to current messages 
 				# shown in chat, then try and delete the last message sent
@@ -814,12 +896,12 @@ def processNewUserList():
 					newUsers[key]['welcomeMsgid'].append(json.loads(newTextMessageRequest[2])['result']['message_id'])
 					deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", newUsers[key]['welcomeMsgid'].pop(len(newUsers[key]['welcomeMsgid'])-2)])
 					if deleteRequest[0] == False:
-						print("timestamp:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
+						print("timestamp19:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
 				
 				banRequest = sendRequest(["kickChatMember", "chat_id", newUsers[key]['chatId'], "user_id", newUsers[key]['id']])
 				if banRequest[0] == False:
 					# if the ban failed, output request contents
-					print("timestamp:", int(time.time()), "Couldn't ban user_id", newUsers[key]['id'], ":", banRequest[2])
+					print("timestamp20:", int(time.time()), "Couldn't ban user_id", newUsers[key]['id'], ":", banRequest[2])
 
 
 
@@ -840,7 +922,7 @@ def processNewUserList():
 					newUsers[key]['welcomeMsgid'].append(json.loads(newTextMessageRequest[2])['result']['message_id'])
 					deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", newUsers[key]['welcomeMsgid'].pop(len(newUsers[key]['welcomeMsgid'])-2)])
 					if deleteRequest[0] == False:
-						print("timestamp:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
+						print("timestamp21:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'][len(newUsers[key]['welcomeMsgid'])-2], ":", deleteRequest[2])
 
 				# give permanent privilages
 				newMemberRestrictions = json.dumps({
@@ -856,7 +938,7 @@ def processNewUserList():
 
 				permEditRequest = sendRequest(["restrictChatMember", "chat_id", newUsers[key]['chatId'], "user_id", newUsers[key]['id'], "permissions", newMemberRestrictions, "until_date", currentUnixTime])
 				if permEditRequest[0] == False:
-					print("timestamp:", int(time.time()), "Failed to change permissions for", newUsers[key]['id'], ":", permEditRequest[2])
+					print("timestamp22:", int(time.time()), "Failed to change permissions for", newUsers[key]['id'], ":", permEditRequest[2])
 
 
 		# if the user has passed validation, sent a message, 
@@ -874,7 +956,7 @@ def processNewUserList():
 				for msg in range(len(newUsers[key]['welcomeMsgid'])):
 					deleteRequest = sendRequest(["deleteMessage", "chat_id", newUsers[key]['chatId'], "message_id", newUsers[key]['welcomeMsgid'][msg-1]])
 					if deleteRequest[0] == False:
-						print("timestamp:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'], ":", deleteRequest[2])
+						print("timestamp23:", int(time.time()), "Failed to delete message", newUsers[key]['welcomeMsgid'], ":", deleteRequest[2])
 				
 				# mark newUser for deletion from dictionary
 				toDelete.append(key)
@@ -885,7 +967,7 @@ def processNewUserList():
 		try:
 			del newUsers[user]
 		except Exception as e:
-			print("timestamp:", int(time.time()), "Failed to remove user", user, ":", str(e))
+			print("timestamp24:", int(time.time()), "Failed to remove user", user, ":", str(e))
 
 
 def sendRequest(msgParams):
@@ -900,11 +982,13 @@ def sendRequest(msgParams):
 		requestString = "https://api.telegram.org/bot"+str(token)+"/"+str(msgParams[0])
 
 	try:
+		print('---------requestString----------\n', requestString)
 		request = requests.get(requestString)
 		# return True/False for a status code of 2XX, the status code itself and the response content
 		if request.ok:
 			return [True, request.status_code, request.content]
 		else:
+			print('-------request.content--------\n', request.content)
 			return [False, request.status_code, request.content]
 	except Exception as e:
 		return [False, 0, "Error whilst making the request:", requestString, "\nError:",str(e)]
@@ -953,7 +1037,6 @@ if __name__ == '__main__':
 				getHelp()
 		if opt in ['--help']:
 			getHelp()
-	print("--------------------------------------\nProgram started at UNIX time:", int(time.time()), "\n")
 
 	# load configurations
 	config = config('config.txt')
@@ -1046,9 +1129,13 @@ if __name__ == '__main__':
 	messageHandler = messageHandler(token)
 	callback_queryHandler = callback_queryHandler(token)
 
+	# schedule.every().day.at('00:00').do(run_async_jobs)
+	schedule.every(5).minutes.do(run_async_jobs)
+
 	# loop, run until program is quit
 	while True:
 		# fetch all the new messages from Telegram servers
+		
 		if messageFetcher.fetchMessages() == True:
 			# for each message in the list of new messages
 			for i in range(messageFetcher.getMessagesLength()):
@@ -1084,4 +1171,8 @@ if __name__ == '__main__':
 			# (may reduce strain on telegram servers when requests are randomly distributed if
 			# they go down, instead of happening at fixed rate along with many other bots etc)
 			time.sleep(random.randint(20, 60))
-
+		
+		
+		run_async_jobs()
+		# schedule.run_pending()
+		# time.sleep(1)
